@@ -1,0 +1,146 @@
+
+#user  nobody;
+worker_processes  1;
+
+#error_log  logs/error.log;
+#error_log  logs/error.log  notice;
+#error_log  logs/error.log  info;
+
+#pid        logs/nginx.pid;
+
+               #     '"$request" $status $body_bytes_sent '
+               #     '"$http_referer" "$http_user_agent"';
+
+events {
+    worker_connections  1024;
+}
+
+http {
+    include       mime.types;
+    default_type  application/octet-stream;
+
+
+   # sample what to log write
+    #log_format custom_log '"Request: $request\n Status: $status\n Request_URI: $request_uri\n Host: $host\n Client_IP: $remote_addr\n Proxy_IP(s): $proxy_add_x_forwarded_for\n Proxy_Hostname: $proxy_host\n Real_IP: $http_x_real_ip\n User_Client: $http_user_agent"';
+
+      log_format  main  'Client_IP : $remote_addr \n Client_User: $remote_user \n TimeStamp: [$time_local] \n Client_Request: $request \n'
+                        'Status : $status \n Body_Bytes: $body_bytes_sent \n Referer: $http_referer \n'
+                        'Real-IP: $http_x_real_ip \n User_Client: $http_user_agent \n Proxy_IP: $proxy_add_x_forwarded_for \n Proxy_HostName : $proxy_host \n Host: $host \n'
+					    '***************************************************************************************************************** \n';
+ 
+
+   # access_log  logs/custom-access-logs.log  main;
+
+    sendfile        on;
+    #tcp_nopush     on;
+
+    #keepalive_timeout  0;
+    keepalive_timeout  65;
+
+    #gzip  on;
+
+    server {
+        listen       80;
+        server_name  localhost;
+
+        #charset koi8-r;
+
+       access_log  logs/custom-server-1-logs.log  main; # enable server logs
+
+        location / {
+            root   html;
+            index  index.html index.htm;
+        }
+		
+		
+		# proxy for users
+		location /users {
+		 proxy_set_header Host $host; #  passing request headers to backend service
+         proxy_set_header X-Real-IP $remote_addr; #  passing request headers to backend service
+         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+		 add_header USERS_HEADER users-microservices;
+	     proxy_pass http://localhost:8080; # users ms
+		}
+		
+		# proxy for transactions
+		 location /transactions {
+	     proxy_set_header Host $host; #  passing request headers to backend service
+         proxy_set_header X-Real-IP $remote_addr; #  passing request headers to backend service
+         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+		 add_header TRX_HEADER transactions-microservices;
+		 proxy_pass http://localhost:8095; # transactions ms
+		}
+		
+				
+		
+
+        #error_page  404              /404.html;
+
+        # redirect server error pages to the static page /50x.html
+        #
+        error_page   500 502 503 504  /50x.html;
+        location = /50x.html {
+            root   html;
+        }
+
+        # proxy the PHP scripts to Apache listening on 127.0.0.1:80
+        #
+        #location ~ \.php$ {
+        #    proxy_pass   http://127.0.0.1;
+        #}
+
+        # pass the PHP scripts to FastCGI server listening on 127.0.0.1:9000
+        #
+        #location ~ \.php$ {
+        #    root           html;
+        #    fastcgi_pass   127.0.0.1:9000;
+        #    fastcgi_index  index.php;
+        #    fastcgi_param  SCRIPT_FILENAME  /scripts$fastcgi_script_name;
+        #    include        fastcgi_params;
+        #}
+
+        # deny access to .htaccess files, if Apache's document root
+        # concurs with nginx's one
+        #
+        #location ~ /\.ht {
+        #    deny  all;
+        #}
+    }
+
+
+    # another virtual host using mix of IP-, name-, and port-based configuration
+    #
+    #server {
+    #    listen       8000;
+    #    listen       somename:8080;
+    #    server_name  somename  alias  another.alias;
+
+    #    location / {
+    #        root   html;
+    #        index  index.html index.htm;
+    #    }
+    #}
+
+
+    # HTTPS server
+    #
+    #server {
+    #    listen       443 ssl;
+    #    server_name  localhost;
+
+    #    ssl_certificate      cert.pem;
+    #    ssl_certificate_key  cert.key;
+
+    #    ssl_session_cache    shared:SSL:1m;
+    #    ssl_session_timeout  5m;
+
+    #    ssl_ciphers  HIGH:!aNULL:!MD5;
+    #    ssl_prefer_server_ciphers  on;
+
+    #    location / {
+    #        root   html;
+    #        index  index.html index.htm;
+    #    }
+    #}
+
+}
